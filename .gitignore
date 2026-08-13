@@ -1,0 +1,16 @@
+# Build artifacts
+build/
+DerivedData/
+
+# Generated Xcode project (regenerated from project.yml by build.sh)
+*.xcodeproj/
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Bundles / products
+*.bundle
+
+# macOS
+.DS_Store

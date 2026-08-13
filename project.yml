@@ -1,0 +1,40 @@
+name: TypeWhisperCNProviders
+options:
+  bundleIdPrefix: dev.yfzhou.typewhisper
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+packages:
+  TypeWhisperPluginSDK:
+    path: vendor/TypeWhisperPluginSDK
+
+targets:
+  TypeWhisperCNProviders:
+    type: bundle
+    platform: macOS
+    sources:
+      - Sources
+    resources:
+      - path: Sources/manifest.json
+    dependencies:
+      - package: TypeWhisperPluginSDK
+        product: TypeWhisperPluginSDK
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: dev.yfzhou.typewhisper-cn-providers
+        PRODUCT_NAME: TypeWhisperCNProviders
+        SWIFT_VERSION: "5.0"
+        SWIFT_STRICT_CONCURRENCY: minimal
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: "YES"
+        CODE_SIGNING_ALLOWED: "YES"
+        ENABLE_HARDENED_RUNTIME: "NO"
+        LD_RUNPATH_SEARCH_PATHS:
+          - "$(inherited)"
+          - "@executable_path/../Frameworks"
+          - "@loader_path/../Frameworks"
+        INFOPLIST_KEY_CFBundlePackageType: BNDL
+        GENERATE_INFOPLIST_FILE: "YES"

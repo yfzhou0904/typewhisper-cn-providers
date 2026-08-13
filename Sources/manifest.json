@@ -1,0 +1,16 @@
+{
+    "id": "dev.yfzhou.typewhisper-cn-providers",
+    "name": "CN Providers",
+    "version": "1.0.0",
+    "minHostVersion": "1.5.0",
+    "sdkCompatibilityVersion": "v1",
+    "minOSVersion": "14.0",
+    "supportedArchitectures": ["arm64"],
+    "author": "yfzhou",
+    "description": "China-hosted ASR providers for TypeWhisper dictation: Xiaomi MiMo-V2.5-ASR and ByteDance Seed-ASR 2.0. Switch providers in-app.",
+    "category": "transcription",
+    "hosting": "cloud",
+    "iconSystemName": "waveform.badge.mic",
+    "principalClass": "TypeWhisperCNProvidersPlugin",
+    "requiresAPIKey": true
+}
