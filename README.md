@@ -18,6 +18,7 @@ Switch engines live, in-app, via **Settings → Recording → Engine**. Both are
 - **Two engines, one plugin** — pick Xiaomi or ByteDance per session; both one-shot (non-streaming) `transcribe(audio:)`.
 - **China-hosted & pay-as-you-go** — no monthly subscription; billed per hour of audio, only for what you use (~¥0.5–1/hour).
 - **Mixed Chinese/English out of the box** — language defaults to `auto`.
+- **Dictionary Terms on Seed** — TypeWhisper dictionary Terms are forwarded to Seed-ASR as hotwords (`request.corpus.context`, up to 5000 words), improving recognition of names/technical vocabulary. MiMo remains Corrections-only (no documented hotword API).
 - **Clean English output** — `enable_auto_lang` is deliberately off so English gets proper ASCII punctuation + capitalization (see [Engine tuning](#engine-tuning)).
 - **Secure by default** — API keys live in the macOS Keychain via TypeWhisper's plugin-scoped secrets; nothing is hardcoded or logged.
 - **Self-contained bundle** — the SDK is embedded and the bundle is ad-hoc re-signed, so it loads on any Apple Silicon Mac.

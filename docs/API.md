@@ -57,6 +57,26 @@ the details are self-contained and don't have to be re-derived.
 - **`enable_punc: true`** — gives punctuation (note: even a single word comes back as a forced sentence, `hello` → `Hello.`).
 - **`enable_itn`** — normalized numbers/dates. **`enable_ddc`** — semantic smoothing.
 
+### Dictionary terms → Seed hotwords
+
+TypeWhisper dictionary **Terms** are forwarded to Seed as direct hotwords via `request.corpus.context` (a JSON *string* wrapping a `{"hotwords":[...]}` object). This biases decoding toward the configured vocabulary; deterministic **Corrections** are applied host-side by TypeWhisper and are not handled here.
+
+```json
+{
+  "request": {
+    "model_name": "bigmodel",
+    "...": "...",
+    "corpus": {
+      "context": "{\"hotwords\":[{\"word\":\"Qdrant\"},{\"word\":\"psql\"}]}"
+    }
+  }
+}
+```
+
+- Only present when the user has dictionary Terms and the host forwards them (`dictionaryTermHints`).
+- `bigmodel_nostream` accepts up to **5000 words**; direct hotwords take priority over any server-side hotword table.
+- The engine advertises `dictionaryTermsSupport = .supported` with a `DictionaryTermsBudget(maxTerms: 5000)`.
+
 ### Wire protocol (binary frames)
 
 The `_nostream` endpoint streams binary frames: `4-byte header` + `4-byte big-endian sequence` + `4-byte big-endian size` + gzip payload.

@@ -14,7 +14,11 @@ import TypeWhisperPluginSDK
 /// Auth: single `X-Api-Key` header (modern console method) + `X-Api-Resource-Id`.
 /// (The legacy App ID + Access Token method is supported by the server but not used.)
 @objc(ByteDanceSeedASREngine)
-final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchecked Sendable {
+final class ByteDanceSeedASREngine: NSObject,
+    DictionaryTermHintTranscriptionEnginePlugin,
+    DictionaryTermsCapabilityProviding,
+    DictionaryTermsBudgetProviding,
+    @unchecked Sendable {
 
     static let providerIdValue = "bytedance-seed-asr"
     static let providerDisplayNameValue = "ByteDance Seed ASR"
@@ -74,6 +78,36 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
         translate: Bool,
         prompt: String?
     ) async throws -> PluginTranscriptionResult {
+        try await transcribe(
+            audio: audio,
+            language: language,
+            translate: translate,
+            prompt: prompt,
+            dictionaryTermHints: []
+        )
+    }
+
+    // MARK: - Dictionary terms (Seed hotwords)
+    //
+    // Seed-ASR 2.0's bigmodel_nostream endpoint natively supports direct
+    // hotword injection (up to 5000 words) via `request.corpus.context`.
+    // TypeWhisper dictionary Terms are forwarded verbatim as recognition hints
+    // (NOT converted into corrections — deterministic Corrections are applied
+    // host-side by TypeWhisper itself).
+
+    var dictionaryTermsSupport: DictionaryTermsSupport { .supported }
+
+    var dictionaryTermsBudget: DictionaryTermsBudget {
+        DictionaryTermsBudget(maxTerms: 5000)
+    }
+
+    func transcribe(
+        audio: AudioData,
+        language: String?,
+        translate: Bool,
+        prompt: String?,
+        dictionaryTermHints: [PluginDictionaryTermHint]
+    ) async throws -> PluginTranscriptionResult {
         guard !translate else {
             throw PluginTranscriptionError.apiError("ByteDance Seed ASR does not support translation.")
         }
@@ -85,9 +119,17 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
             throw PluginTranscriptionError.apiError("Empty audio data")
         }
 
+        // Normalize + clip terms to our declared budget.
+        let clipped = PluginDictionaryTerms.clippedTermHints(
+            from: dictionaryTermHints,
+            budget: dictionaryTermsBudget
+        )
+        let hotwords = clipped.map(\.text)
+
         let transcript = try await Self.runSeedASR(
             wavData: audio.wavData,
-            apiKey: apiKey
+            apiKey: apiKey,
+            hotwords: hotwords
         )
         return PluginTranscriptionResult(text: transcript)
     }
@@ -117,7 +159,8 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
 
     private static func runSeedASR(
         wavData: Data,
-        apiKey: String
+        apiKey: String,
+        hotwords: [String] = []
     ) async throws -> String {
         guard let url = URL(string: Self.endpoint) else {
             throw PluginTranscriptionError.networkError("Invalid URL: \(Self.endpoint)")
@@ -140,7 +183,7 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
 
         do {
             // 1. Full client request (gzipped JSON config).
-            let payload = try Self.requestPayload(wavData: wavData)
+            let payload = try Self.requestPayload(wavData: wavData, hotwords: hotwords)
             try await task.send(.data(try Self.fullRequestFrame(payload: payload)))
 
             // 2. Wait for the server ack.
@@ -192,8 +235,34 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
 
     // MARK: - Request payload
 
-    private static func requestPayload(wavData: Data) throws -> Data {
+    private static func requestPayload(wavData: Data, hotwords: [String]) throws -> Data {
         let info = try WAV.parse(wavData)
+        var request: [String: Any] = [
+            "model_name": "bigmodel",
+            "enable_itn": true,
+            "enable_punc": true,
+            "enable_ddc": true,
+            // enable_auto_lang=false: auto-lang can misclassify non-native English
+            // as "Chinese English" and switch to CJK punctuation (。，) and drop
+            // sentence capitalization. Disabling it yields proper ASCII punctuation
+            // + capitalization for English, while Chinese output is unaffected.
+            // (Only correct when not switching languages mid-sentence.)
+            "enable_auto_lang": false,
+            "show_utterances": false,
+            "enable_nonstream": false,
+        ]
+        if !hotwords.isEmpty {
+            // Seed direct hotwords: `request.corpus.context` is a JSON *string*
+            // containing `{"hotwords":[{"word":...}]}`. nostream supports up to
+            // 5000 words, and directly-supplied hotwords take priority over any
+            // server-side hotword table.
+            let hotwordsObject = ["hotwords": hotwords.map { ["word": $0] }]
+            let hotwordsJson = String(
+                data: try JSONSerialization.data(withJSONObject: hotwordsObject),
+                encoding: .utf8
+            ) ?? "{}"
+            request["corpus"] = ["context": hotwordsJson]
+        }
         let body: [String: Any] = [
             "user": ["uid": "typewhisper"],
             "audio": [
@@ -203,20 +272,7 @@ final class ByteDanceSeedASREngine: NSObject, TranscriptionEnginePlugin, @unchec
                 "bits": info.bits,
                 "channel": info.channels,
             ],
-            "request": [
-                "model_name": "bigmodel",
-                "enable_itn": true,
-                "enable_punc": true,
-                "enable_ddc": true,
-                // enable_auto_lang=false: auto-lang can misclassify non-native English
-                // as "Chinese English" and switch to CJK punctuation (。，) and drop
-                // sentence capitalization. Disabling it yields proper ASCII punctuation
-                // + capitalization for English, while Chinese output is unaffected.
-                // (Only correct when not switching languages mid-sentence.)
-                "enable_auto_lang": false,
-                "show_utterances": false,
-                "enable_nonstream": false,
-            ],
+            "request": request,
         ]
         return try JSONSerialization.data(withJSONObject: body)
     }
