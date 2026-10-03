@@ -97,8 +97,10 @@ Both engines implement TypeWhisper's `TranscriptionEnginePlugin.transcribe(audio
 
 ```
 Sources/
-  TypeWhisperCNProvidersPlugin.swift     # main plugin: orchestration, MiMo engine, settings views
-  ByteDanceSeedASREngine.swift   # Seed-ASR WebSocket engine + protocol
+  TypeWhisperCNProvidersPlugin.swift  # lifecycle, engine registration, primary-engine forwarding
+  XiaomiMiMoASREngine.swift           # MiMo HTTPS engine + request/response handling
+  ByteDanceSeedASREngine.swift        # Seed-ASR WebSocket engine + protocol
+  CNProvidersSettingsView.swift       # combined settings for both providers
   Support/
     WAV.swift                    # minimal WAV header parsing + chunking
     Gzip.swift                   # gzip encode/decode (raw-deflate → gzip framing)

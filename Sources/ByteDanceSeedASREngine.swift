@@ -1,6 +1,5 @@
 import Foundation
 import os
-import SwiftUI
 import TypeWhisperPluginSDK
 
 /// TypeWhisper transcription engine backed by ByteDance's (Volcengine) Seed-ASR
@@ -23,8 +22,8 @@ final class ByteDanceSeedASREngine: NSObject,
     static let providerIdValue = "bytedance-seed-asr"
     static let providerDisplayNameValue = "ByteDance Seed ASR"
 
-    static let pluginId = "dev.yfzhou.typewhisper-cn-providers"
-    static let pluginName = "Xiaomi MiMo ASR + ByteDance Seed ASR"
+    static let pluginId = TypeWhisperCNProvidersPlugin.pluginId
+    static let pluginName = TypeWhisperCNProvidersPlugin.pluginName
 
     private static let endpoint = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream"
     private static let resourceID = "volc.seedasr.sauc.duration"
