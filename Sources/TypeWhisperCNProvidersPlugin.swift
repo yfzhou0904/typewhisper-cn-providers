@@ -3,7 +3,7 @@ import SwiftUI
 import TypeWhisperPluginSDK
 
 /// Registers Xiaomi MiMo as the primary engine and ByteDance Seed as an
-/// additional selectable engine, with shared plugin lifecycle and settings.
+/// additional selectable engine (standard and Agent Plan), with shared lifecycle.
 @objc(TypeWhisperCNProvidersPlugin)
 final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, AdditionalTranscriptionEnginesProviding, @unchecked Sendable {
     static let pluginId = "dev.yfzhou.typewhisper-cn-providers"
@@ -11,6 +11,7 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
 
     private let mimoEngine = XiaomiMiMoASREngine()
     private let seedEngine = ByteDanceSeedASREngine()
+    private let agentPlanEngine = ByteDanceSeedASREngine(service: .agentPlan)
 
     required override init() {
         super.init()
@@ -19,17 +20,19 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
     func activate(host: HostServices) {
         mimoEngine.activate(host: host)
         seedEngine.activate(host: host)
+        agentPlanEngine.activate(host: host)
     }
 
     func deactivate() {
         mimoEngine.deactivate()
         seedEngine.deactivate()
+        agentPlanEngine.deactivate()
     }
 
     // MARK: - AdditionalTranscriptionEnginesProviding
 
     var additionalTranscriptionEngines: [any TranscriptionEnginePlugin] {
-        [seedEngine]
+        [seedEngine, agentPlanEngine]
     }
 
     // MARK: - Primary engine (Xiaomi MiMo)
@@ -64,6 +67,8 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
     // MARK: - Combined settings
 
     var settingsView: AnyView? {
-        AnyView(CNProvidersSettingsView(mimoEngine: mimoEngine, seedEngine: seedEngine))
+        AnyView(CNProvidersSettingsView(
+            mimoEngine: mimoEngine, seedEngine: seedEngine, agentPlanEngine: agentPlanEngine
+        ))
     }
 }

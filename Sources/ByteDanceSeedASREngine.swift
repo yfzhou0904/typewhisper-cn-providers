@@ -5,7 +5,7 @@ import TypeWhisperPluginSDK
 /// TypeWhisper transcription engine backed by ByteDance's (Volcengine) Seed-ASR
 /// 2.0 bigmodel service, modern single-key auth.
 ///
-/// Transport: `wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream`
+/// Transport: `bigmodel_nostream`, with a separate `/plan/` route for Agent Plan.
 /// (non-streaming: stream the WAV in as binary frames, get the full-sentence
 /// transcript at the end). The binary protocol mirrors ByteDance's official
 /// `sauc_websocket_demo.py`:
@@ -19,30 +19,56 @@ final class ByteDanceSeedASREngine: NSObject,
     DictionaryTermsBudgetProviding,
     @unchecked Sendable {
 
-    static let providerIdValue = "bytedance-seed-asr"
-    static let providerDisplayNameValue = "ByteDance Seed ASR"
+    enum Service: Sendable {
+        case standard
+        case agentPlan
+
+        var providerId: String {
+            self == .standard ? "bytedance-seed-asr" : "volcengine-agent-plan-asr"
+        }
+
+        var displayName: String {
+            self == .standard ? "ByteDance Seed ASR" : "Volcengine Agent Plan ASR"
+        }
+
+        var endpoint: String {
+            switch self {
+            case .standard: "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream"
+            case .agentPlan: "wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream"
+            }
+        }
+
+        var secretKey: String {
+            self == .standard ? "bdApiKey" : "arkAgentPlanApiKey"
+        }
+    }
 
     static let pluginId = TypeWhisperCNProvidersPlugin.pluginId
     static let pluginName = TypeWhisperCNProvidersPlugin.pluginName
 
-    private static let endpoint = "wss://openspeech.bytedance.com/api/v3/sauc/bigmodel_nostream"
     private static let resourceID = "volc.seedasr.sauc.duration"
-    private static let apiKeySecretKey = "bdApiKey"
     private static let modelID = "seed-asr-2.0"
     private static let segmentDurationMs = 200
     private static let resourceTimeout: TimeInterval = 90
 
     private let state = ByteDanceSeedASRState()
+    let service: Service
     private let logger = Logger(subsystem: "dev.yfzhou.typewhisper-cn-providers", category: "ByteDanceSeedASR")
 
     required override init() {
+        service = .standard
+        super.init()
+    }
+
+    init(service: Service) {
+        self.service = service
         super.init()
     }
 
     func activate(host: HostServices) {
         state.activate(
             host: host,
-            apiKey: host.loadSecret(key: Self.apiKeySecretKey)
+            apiKey: host.loadSecret(key: service.secretKey)
         )
     }
 
@@ -52,8 +78,8 @@ final class ByteDanceSeedASREngine: NSObject,
 
     // MARK: - TranscriptionEnginePlugin
 
-    var providerId: String { Self.providerIdValue }
-    var providerDisplayName: String { Self.providerDisplayNameValue }
+    var providerId: String { service.providerId }
+    var providerDisplayName: String { service.displayName }
 
     var isConfigured: Bool {
         guard let apiKey = state.snapshot().apiKey else { return false }
@@ -61,7 +87,8 @@ final class ByteDanceSeedASREngine: NSObject,
     }
 
     var transcriptionModels: [PluginModelInfo] {
-        [PluginModelInfo(id: Self.modelID, displayName: "Seed-ASR 2.0 (bigmodel)")]
+        [PluginModelInfo(id: Self.modelID, displayName: service == .agentPlan
+            ? "Seed-ASR 2.0 (Agent Plan)" : "Seed-ASR 2.0 (bigmodel)")]
     }
 
     var selectedModelId: String? { Self.modelID }
@@ -108,7 +135,7 @@ final class ByteDanceSeedASREngine: NSObject,
         dictionaryTermHints: [PluginDictionaryTermHint]
     ) async throws -> PluginTranscriptionResult {
         guard !translate else {
-            throw PluginTranscriptionError.apiError("ByteDance Seed ASR does not support translation.")
+            throw PluginTranscriptionError.apiError("\(providerDisplayName) does not support translation.")
         }
         let snap = state.snapshot()
         guard let apiKey = snap.apiKey, !apiKey.isEmpty else {
@@ -128,6 +155,7 @@ final class ByteDanceSeedASREngine: NSObject,
         let transcript = try await Self.runSeedASR(
             wavData: audio.wavData,
             apiKey: apiKey,
+            service: service,
             hotwords: hotwords
         )
         return PluginTranscriptionResult(text: transcript)
@@ -145,7 +173,7 @@ final class ByteDanceSeedASREngine: NSObject,
         }
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         do {
-            try host.storeSecret(key: Self.apiKeySecretKey, value: trimmed)
+            try host.storeSecret(key: service.secretKey, value: trimmed)
             state.update(apiKey: trimmed)
             host.notifyCapabilitiesChanged()
         } catch {
@@ -159,10 +187,11 @@ final class ByteDanceSeedASREngine: NSObject,
     private static func runSeedASR(
         wavData: Data,
         apiKey: String,
+        service: Service,
         hotwords: [String] = []
     ) async throws -> String {
-        guard let url = URL(string: Self.endpoint) else {
-            throw PluginTranscriptionError.networkError("Invalid URL: \(Self.endpoint)")
+        guard let url = URL(string: service.endpoint) else {
+            throw PluginTranscriptionError.networkError("Invalid URL: \(service.endpoint)")
         }
 
         // Auth + framing headers (single modern API key).
@@ -186,7 +215,10 @@ final class ByteDanceSeedASREngine: NSObject,
             try await task.send(.data(try Self.fullRequestFrame(payload: payload)))
 
             // 2. Wait for the server ack.
-            _ = try await Self.nextResponse(task)
+            let ack = try await Self.nextResponse(task)
+            guard ack.code == 0 else {
+                throw PluginTranscriptionError.apiError("Seed-ASR error code \(ack.code)")
+            }
 
             // 3. Stream the WAV as audio-only frames (seq from 2).
             let (segments, _) = try WAV.segments(wavData: wavData, segmentDurationMs: Self.segmentDurationMs)

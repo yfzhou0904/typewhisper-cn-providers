@@ -1,6 +1,6 @@
 # API reference
 
-Endpoints and request shapes for the two engines this plugin uses, kept here so
+Endpoints and request shapes for the three provider choices this plugin uses, kept here so
 the details are self-contained and don't have to be re-derived.
 
 ## Xiaomi MiMo-V2.5-ASR
@@ -89,6 +89,21 @@ The `_nostream` endpoint streams binary frames: `4-byte header` + `4-byte big-en
 ### gzip caveat (important)
 
 Apple's `NSData.compressed(using: .zlib)` emits **raw DEFLATE** (no zlib wrapper), so the engine wraps it with a gzip header + trailer on encode and skips the variable-length gzip header + trailer on decode, matching Python's `gzip.compress`/`gzip.decompress` used by ByteDance's official sample. See `Sources/Support/Gzip.swift`.
+
+## Volcengine Agent Plan ASR
+
+- **Provider ID:** `volcengine-agent-plan-asr` (independent of standard Seed).
+- **Endpoint:** `wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream`.
+- **Resource ID:** `volc.seedasr.sauc.duration`.
+- **Auth:** dedicated Agent Plan key in `X-Api-Key`, plus `X-Api-Resource-Id` and a unique `X-Api-Request-Id`.
+- **Keychain entry:** `arkAgentPlanApiKey`; standard Seed keeps `bdApiKey`.
+- **Model:** Seed-ASR 2.0, with `request.model_name = bigmodel`. No Auto or console-based model switching.
+- **Protocol and hotwords:** identical to the standard Seed implementation above.
+- **Billing:** subscription AFP credits; paid overage only if enabled in the console and credits are exhausted. The plugin does not enable overage or fall back to another billing route.
+
+The [official Agent Plan speech guide](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh) provides the dedicated endpoints and sample protocol. `bigmodel_async` is also available at `wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_async`, but this plugin uses `bigmodel_nostream` to match TypeWhisper's recorded-audio contract and existing hotword support.
+
+Agent Plan also exposes Seed-TTS 2.0 (`X-Api-Resource-Id: seed-tts-2.0`) via `/api/v3/plan/tts/bidirection`, `/api/v3/plan/tts/unidirectional/stream`, and HTTP POST `/api/v3/plan/tts/unidirectional`. TTS is not implemented by this transcription plugin.
 
 ## Related flavors (for context)
 
