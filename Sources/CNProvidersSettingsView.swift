@@ -4,6 +4,7 @@ import SwiftUI
 struct CNProvidersSettingsView: View {
     let mimoEngine: XiaomiMiMoASREngine
     let seedEngine: ByteDanceSeedASREngine
+    let agentPlanEngine: ByteDanceSeedASREngine
     private let bundle = pluginModuleBundle
 
     @State private var apiKeyInput = ""
@@ -72,6 +73,11 @@ struct CNProvidersSettingsView: View {
 
             ByteDanceSeedASRSettingsSection(seedEngine: seedEngine)
 
+            Divider()
+                .padding(.vertical, 4)
+
+            ByteDanceSeedASRSettingsSection(seedEngine: agentPlanEngine)
+
             Text("All credentials are stored securely in the macOS Keychain.", bundle: bundle)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -105,25 +111,27 @@ private struct ByteDanceSeedASRSettingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("ByteDance Seed ASR", bundle: bundle)
+                Text(seedEngine.providerDisplayName)
                     .font(.headline)
 
-                Text("Transcription via ByteDance's Seed-ASR 2.0 bigmodel service. Auto-detects Chinese/English with punctuation.", bundle: bundle)
+                Text(seedEngine.service == .agentPlan
+                    ? "Uses your dedicated Agent Plan API key and subscription credits for Seed-ASR 2.0."
+                    : "Transcription via ByteDance's Seed-ASR 2.0 bigmodel service. Auto-detects Chinese/English with punctuation.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             VStack(alignment: .leading, spacing: 8) {
-                Text("API Key", bundle: bundle)
+                Text(seedEngine.service == .agentPlan ? "Agent Plan API Key" : "API Key")
                     .font(.subheadline)
 
                 HStack(spacing: 8) {
                     if showKey {
-                        TextField(String(localized: "Seed ASR API Key", bundle: bundle), text: $apiKeyInput)
+                        TextField(keyPlaceholder, text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
                             .font(.system(.body, design: .monospaced))
                     } else {
-                        SecureField(String(localized: "Seed ASR API Key", bundle: bundle), text: $apiKeyInput)
+                        SecureField(keyPlaceholder, text: $apiKeyInput)
                             .textFieldStyle(.roundedBorder)
                     }
 
@@ -173,6 +181,10 @@ private struct ByteDanceSeedASRSettingsSection: View {
         } catch {
             saved = false
         }
+    }
+
+    private var keyPlaceholder: String {
+        seedEngine.service == .agentPlan ? "Agent Plan API Key" : "Seed ASR API Key"
     }
 }
 

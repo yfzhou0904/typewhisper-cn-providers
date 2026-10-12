@@ -1,11 +1,12 @@
 # TypeWhisper CN Providers — China-hosted transcription providers for TypeWhisper
 
-A [TypeWhisper](https://github.com/TypeWhisper/typewhisper-mac) transcription plugin that brings **independently selectable cloud ASR providers** to push-to-talk dictation, hosted in China and billed pay-as-you-go (no subscription). Currently ships:
+A [TypeWhisper](https://github.com/TypeWhisper/typewhisper-mac) transcription plugin that brings **independently selectable cloud ASR providers** to push-to-talk dictation, hosted in China. Supports pay-as-you-go providers and a Volcengine Agent Plan subscription. Currently ships:
 
 1. **Xiaomi MiMo-V2.5-ASR** — OpenAI-compatible chat-completions API (`providerId = "mimo-asr"`)
 2. **ByteDance Seed-ASR 2.0** — Volcengine `bigmodel` WebSocket API (`providerId = "bytedance-seed-asr"`)
+3. **Volcengine Agent Plan ASR** — Seed-ASR 2.0 through the dedicated subscription endpoint (`providerId = "volcengine-agent-plan-asr"`)
 
-Switch engines live, in-app, via **Settings → Recording → Engine**. Both are China-hosted, so no cross-border latency.
+Switch engines live, in-app, via **Settings → Recording → Engine**. All use China-hosted endpoints.
 
 > The name says "providers" (not a single vendor) because the plugin is deliberately multi-provider — adding more China-hosted ASR providers is a natural extension.
 
@@ -15,8 +16,8 @@ Switch engines live, in-app, via **Settings → Recording → Engine**. Both are
 
 ## Features
 
-- **Two engines, one plugin** — pick Xiaomi or ByteDance per session; both one-shot (non-streaming) `transcribe(audio:)`.
-- **China-hosted & pay-as-you-go** — no monthly subscription; billed per hour of audio, only for what you use (~¥0.5–1/hour).
+- **Three provider choices, one plugin** — pick Xiaomi, ByteDance, or Volcengine Agent Plan; all implement one-shot `transcribe(audio:)`.
+- **Separate billing routes** — MiMo and standard Seed use their respective APIs; Agent Plan uses its dedicated `/plan/` speech endpoint and subscription AFP credits.
 - **Mixed Chinese/English out of the box** — language defaults to `auto`.
 - **Dictionary Terms on Seed** — TypeWhisper dictionary Terms are forwarded to Seed-ASR as hotwords (`request.corpus.context`, up to 5000 words), improving recognition of names/technical vocabulary. MiMo remains Corrections-only (no documented hotword API).
 - **Clean English output** — `enable_auto_lang` is deliberately off so English gets proper ASCII punctuation + capitalization (see [Engine tuning](#engine-tuning)).
@@ -58,7 +59,12 @@ The bundle is produced at `build/DerivedData/Build/Products/Release/TypeWhisperC
 2. Enter your API key(s) (stored in the macOS Keychain):
    - **MiMo API key** — from the Xiaomi MiMo console.
    - **Seed ASR API key** — from Volcengine's console (**API Key management**).
-3. **Settings → Recording → Engine** → choose **Xiaomi MiMo ASR** (`mimo-v2.5-asr`) or **ByteDance Seed ASR** (`seed-asr-2.0`).
+   - **Agent Plan API key** — your dedicated key from the Volcengine Agent Plan console, saved in the separate **Volcengine Agent Plan ASR** section.
+3. **Settings → Recording → Engine** → choose **Xiaomi MiMo ASR** (`mimo-v2.5-asr`), **ByteDance Seed ASR** (`seed-asr-2.0`), or **Volcengine Agent Plan ASR** (`seed-asr-2.0`).
+
+Agent Plan connects only to `wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_nostream` with `X-Api-Resource-Id: volc.seedasr.sauc.duration`. Its key is stored separately from the standard Seed key. The speech model is fixed; it does not use Agent Plan's Auto model routing or console model switching. The plugin's `.env` is only for the development smoke test; enter the key in the app for normal use.
+
+Per the [official Agent Plan speech guide](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh), calls consume subscription AFP credits. Enabling overage billing in the console allows usage to continue with paid overage after credits run out; the plugin does not change that setting. Do not replace the speech endpoint with `https://ark.cn-beijing.volces.com/api/v3`.
 
 > If you were using an earlier build with a different plugin id, TypeWhisper treats this as a new plugin — re-enter your keys once after upgrading.
 
@@ -73,12 +79,13 @@ Hold your push-to-talk key, speak, release — TypeWhisper inserts the transcrip
 ```
 Xiaomi:  AudioData → base64 WAV → HTTPS chat-completions (input_audio) → choices[0].message.content
 ByteDance: AudioData → gzip binary WS frames → Seed-ASR bigmodel_nostream → result.text
+Agent Plan: AudioData → same binary WS protocol → /plan/sauc/bigmodel_nostream → result.text
 ```
 
 - **Xiaomi MiMo** — one synchronous HTTPS call with the WAV embedded as base64. Simplest path.
 - **ByteDance Seed-ASR** — streams the WAV as gzip'd binary frames over a WebSocket and gets the full sentence back at the end (`bigmodel_nostream`). The binary protocol (4-byte header + sequence + size + gzip payload) mirrors ByteDance's official `sauc_websocket_demo.py`.
 
-Both engines implement TypeWhisper's `TranscriptionEnginePlugin.transcribe(audio:)` one-shot contract (no streaming partials).
+All three providers implement TypeWhisper's `TranscriptionEnginePlugin.transcribe(audio:)` one-shot contract (no streaming partials). Agent Plan shares the Seed engine's protocol, tuning, and dictionary hotword support, with an independent provider ID, endpoint, and Keychain entry. TTS is outside this transcription plugin's current scope.
 
 ## Engine tuning
 
@@ -100,22 +107,39 @@ Sources/
   TypeWhisperCNProvidersPlugin.swift  # lifecycle, engine registration, primary-engine forwarding
   XiaomiMiMoASREngine.swift           # MiMo HTTPS engine + request/response handling
   ByteDanceSeedASREngine.swift        # Seed-ASR WebSocket engine + protocol
-  CNProvidersSettingsView.swift       # combined settings for both providers
+  CNProvidersSettingsView.swift       # combined settings for all three providers
   Support/
     WAV.swift                    # minimal WAV header parsing + chunking
     Gzip.swift                   # gzip encode/decode (raw-deflate → gzip framing)
   manifest.json                  # plugin manifest (id, principal class, etc.)
 Scripts/build.sh                 # build + install/symlink
+Scripts/smoke-agent-plan.sh       # live ASR check using the production Swift transport
+Scripts/smoke-agent-plan.swift    # reads ARK_API_KEY without logging it
 project.yml                      # XcodeGen project spec
 vendor/TypeWhisperPluginSDK/     # trimmed copy of the TypeWhisper Plugin SDK (see NOTICE)
 ```
 
 `project.yml` is the source of truth — `Scripts/build.sh` regenerates the Xcode project with `xcodegen` before building, embeds the SDK framework, then ad-hoc re-signs the bundle (macOS refuses to load a bundle whose code seal doesn't cover its nested resources).
 
+### Agent Plan smoke test
+
+Build with `./Scripts/build.sh`. Set `ARK_API_KEY` in your environment or a local `.env` (gitignored), then run against a short 16 kHz mono 16-bit PCM WAV:
+
+```bash
+say -v Tingting -o build/agent-plan.aiff '你好，这是火山引擎语音识别测试。'
+afconvert -f WAVE -d LEI16@16000 -c 1 build/agent-plan.aiff build/agent-plan.wav
+./Scripts/smoke-agent-plan.sh build/agent-plan.wav
+# Optional dictionary hotwords:
+./Scripts/smoke-agent-plan.sh build/agent-plan.wav 火山引擎
+```
+
+This makes a real Agent Plan request and consumes credits. It compiles the plugin's actual transport code and prints the transcript and elapsed time. It never falls back to the standard paid endpoint.
+
 ## Getting keys
 
 - **Xiaomi MiMo**: sign up at the Xiaomi MiMo open platform, create a project, and copy an API key.
 - **ByteDance Seed-ASR**: from the Volcengine Speech console → **API Key management** — copy the API key and note the resource id (`volc.seedasr.sauc.duration`).
+- **Volcengine Agent Plan ASR**: use the dedicated Agent Plan API key, not the standard Speech console key. See the [official speech setup guide](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh).
 
 See the in-repo [API reference](docs/API.md) for full endpoint and parameter details.
 

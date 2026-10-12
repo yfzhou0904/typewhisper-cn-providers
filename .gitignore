@@ -14,3 +14,7 @@ DerivedData/
 
 # macOS
 .DS_Store
+
+# Local smoke-test credentials
+.env
+.env.*

@@ -7,7 +7,7 @@
     "minOSVersion": "14.0",
     "supportedArchitectures": ["arm64"],
     "author": "yfzhou",
-    "description": "China-hosted ASR providers for TypeWhisper dictation: Xiaomi MiMo-V2.5-ASR and ByteDance Seed-ASR 2.0. Switch providers in-app.",
+    "description": "China-hosted ASR providers for TypeWhisper dictation: Xiaomi MiMo-V2.5-ASR, ByteDance Seed-ASR 2.0, and Volcengine Agent Plan ASR. Switch providers in-app.",
     "category": "transcription",
     "hosting": "cloud",
     "iconSystemName": "waveform.badge.mic",
