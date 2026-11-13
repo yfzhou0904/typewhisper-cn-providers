@@ -1,6 +1,6 @@
 # API reference
 
-Endpoints and request shapes for the three provider choices this plugin uses, kept here so
+Endpoints and request shapes for the four provider choices this plugin uses, kept here so
 the details are self-contained and don't have to be re-derived.
 
 ## Xiaomi MiMo-V2.5-ASR
@@ -104,6 +104,28 @@ Apple's `NSData.compressed(using: .zlib)` emits **raw DEFLATE** (no zlib wrapper
 The [official Agent Plan speech guide](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh) provides the dedicated endpoints and sample protocol. `bigmodel_async` is also available at `wss://openspeech.bytedance.com/api/v3/plan/sauc/bigmodel_async`, but this plugin uses `bigmodel_nostream` to match TypeWhisper's recorded-audio contract and existing hotword support.
 
 Agent Plan also exposes Seed-TTS 2.0 (`X-Api-Resource-Id: seed-tts-2.0`) via `/api/v3/plan/tts/bidirection`, `/api/v3/plan/tts/unidirectional/stream`, and HTTP POST `/api/v3/plan/tts/unidirectional`. TTS is not implemented by this transcription plugin.
+
+## DeepSeek ASR
+
+- **Provider ID:** `deepseek-asr`. **Keychain entry:** `deepseekApiKey`.
+- **Endpoint:** `POST https://api.deepseek.com/v1/tools/asr`
+- **Auth:** `Authorization: Bearer <API_KEY>` (a regular DeepSeek platform key).
+- **Request:** `multipart/form-data` with a single `file` field holding the WAV TypeWhisper recorded:
+
+```bash
+curl https://api.deepseek.com/v1/tools/asr \
+  -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+  -F file="@speech.wav"
+```
+
+- **Response:** `{"request_id": "...", "text": "...", "duration_ms": 3200}`. The transcript is `text`.
+- **Audio:** 16-bit PCM WAV or Ogg Opus, 8–48 kHz, mono or stereo (left channel only). Limits: **120 s** and 8 MiB. At 16 kHz mono, the 120 s limit is reached first, at about 3.8 MB.
+- **Options:** none. The language is auto-detected across 21 languages, including Chinese, Cantonese, and English. There is no model, language, prompt, or hotword field. Unknown form fields are silently ignored, so dictionary Terms are not forwarded, and the engine advertises only `auto`.
+- **Silence** returns HTTP 200 with `text: ""`. The engine reports it as "No transcript returned", like the other providers.
+- **Errors** use the OpenAI shape `{"error":{"message":...}}`. The engine maps 401/403 to an invalid key and 429 to rate limiting. Everything else, including the 120 s limit, is relayed as the server's `message` (for example `Invalid audio: audio duration 125000 ms exceeds 120 s`). There is no client-side duration check.
+- **Limits and billing:** 50 concurrent requests per account. Usage is billed per second of audio and drawn from the DeepSeek account balance.
+
+See the [official guide](https://api-docs.deepseek.com/guides/asr).
 
 ## Related flavors (for context)
 

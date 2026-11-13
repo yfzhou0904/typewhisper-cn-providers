@@ -17,10 +17,11 @@ Restart TypeWhisper after rebuilding. The bundle is produced at `build/DerivedDa
 - `Sources/TypeWhisperCNProvidersPlugin.swift` registers providers and forwards the primary engine to MiMo.
 - `Sources/XiaomiMiMoASREngine.swift` handles MiMo HTTPS requests.
 - `Sources/ByteDanceSeedASREngine.swift` handles both standard Seed and Agent Plan WebSocket requests.
+- `Sources/DeepSeekASREngine.swift` handles DeepSeek multipart HTTPS requests.
 - `Sources/CNProvidersSettingsView.swift` provides credential settings.
 - `Sources/Support/` contains WAV parsing and gzip framing.
 
-All providers implement recorded-audio transcription without streaming partials or translation. Seed providers forward dictionary Terms as hotwords; MiMo relies on host-side Corrections. See the [API reference](API.md) for protocol details and tuning.
+All providers implement recorded-audio transcription without streaming partials or translation. Seed providers forward dictionary Terms as hotwords; MiMo and DeepSeek rely on host-side Corrections. See the [API reference](API.md) for protocol details and tuning.
 
 ## Agent Plan smoke test
 
@@ -38,6 +39,18 @@ This makes a real Agent Plan request and consumes credits. It compiles the plugi
 
 
 The test also checks provider registration and independent credential save/reload using an in-memory host. It does not write credentials to the macOS Keychain.
+
+## DeepSeek smoke test
+
+Set `DEEPSEEK_API_KEY` in your environment or `.env`, then run against the same kind of WAV:
+
+```bash
+say -v Tingting -o build/deepseek.aiff '你好，这是DeepSeek语音识别测试。'
+afconvert -f WAVE -d LEI16@16000 -c 1 build/deepseek.aiff build/deepseek.wav
+./Scripts/smoke-deepseek.sh build/deepseek.wav
+```
+
+This makes a real, billed DeepSeek request through the plugin's production engine. It also checks that the DeepSeek key saves and reloads independently of the MiMo key, using an in-memory host.
 
 ## Build verification
 

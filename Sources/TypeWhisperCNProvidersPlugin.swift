@@ -2,8 +2,8 @@ import Foundation
 import SwiftUI
 import TypeWhisperPluginSDK
 
-/// Registers Xiaomi MiMo as the primary engine and ByteDance Seed as an
-/// additional selectable engine (standard and Agent Plan), with shared lifecycle.
+/// Registers Xiaomi MiMo as the primary engine and ByteDance Seed (standard and
+/// Agent Plan) and DeepSeek as additional selectable engines, with shared lifecycle.
 @objc(TypeWhisperCNProvidersPlugin)
 final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, AdditionalTranscriptionEnginesProviding, @unchecked Sendable {
     static let pluginId = "dev.yfzhou.typewhisper-cn-providers"
@@ -12,6 +12,7 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
     private let mimoEngine = XiaomiMiMoASREngine()
     private let seedEngine = ByteDanceSeedASREngine()
     private let agentPlanEngine = ByteDanceSeedASREngine(service: .agentPlan)
+    private let deepSeekEngine = DeepSeekASREngine()
 
     required override init() {
         super.init()
@@ -21,18 +22,20 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
         mimoEngine.activate(host: host)
         seedEngine.activate(host: host)
         agentPlanEngine.activate(host: host)
+        deepSeekEngine.activate(host: host)
     }
 
     func deactivate() {
         mimoEngine.deactivate()
         seedEngine.deactivate()
         agentPlanEngine.deactivate()
+        deepSeekEngine.deactivate()
     }
 
     // MARK: - AdditionalTranscriptionEnginesProviding
 
     var additionalTranscriptionEngines: [any TranscriptionEnginePlugin] {
-        [seedEngine, agentPlanEngine]
+        [seedEngine, agentPlanEngine, deepSeekEngine]
     }
 
     // MARK: - Primary engine (Xiaomi MiMo)
@@ -68,7 +71,8 @@ final class TypeWhisperCNProvidersPlugin: NSObject, TranscriptionEnginePlugin, A
 
     var settingsView: AnyView? {
         AnyView(CNProvidersSettingsView(
-            mimoEngine: mimoEngine, seedEngine: seedEngine, agentPlanEngine: agentPlanEngine
+            mimoEngine: mimoEngine, seedEngine: seedEngine, agentPlanEngine: agentPlanEngine,
+            deepSeekEngine: deepSeekEngine
         ))
     }
 }
