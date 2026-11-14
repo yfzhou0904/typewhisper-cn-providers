@@ -1,6 +1,6 @@
 # TypeWhisper CN Providers
 
-A [TypeWhisper](https://typewhisper.com) plugin for Chinese and English dictation through China-hosted Xiaomi MiMo and ByteDance Seed-ASR 2.0. Supports both standard Seed billing and Volcengine Agent Plan subscriptions.
+A [TypeWhisper](https://typewhisper.com) plugin for Chinese and English dictation through China-hosted Xiaomi MiMo, ByteDance Seed-ASR 2.0, and DeepSeek ASR. Supports both standard Seed billing and Volcengine Agent Plan subscriptions.
 
 ## Start here
 

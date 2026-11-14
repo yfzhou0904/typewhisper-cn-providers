@@ -28,8 +28,9 @@ The bundle is installed in `~/Library/Application Support/TypeWhisper/Plugins/`.
 | Xiaomi MiMo ASR | Xiaomi MiMo open platform | Pay as you go |
 | ByteDance Seed ASR | Volcengine Speech console → API Key management | Pay as you go |
 | Volcengine Agent Plan ASR | Dedicated Agent Plan key from the Volcengine console | Subscription AFP credits |
+| DeepSeek ASR | DeepSeek platform → API keys | Pay as you go, per second of audio |
 
-The two Seed choices use the same Seed-ASR 2.0 model with separate credentials and billing routes. API keys are stored in the macOS Keychain. Development `.env` files are not used by the installed plugin.
+The two Seed choices use the same Seed-ASR 2.0 model with separate credentials and billing routes. DeepSeek detects the language automatically, ignores dictionary Terms, and rejects recordings longer than 2 minutes. API keys are stored in the macOS Keychain. Development `.env` files are not used by the installed plugin.
 
 Agent Plan consumes subscription credits. If you enable overage billing in the console, usage continues with paid overage after credits run out. See the [official speech setup guide](https://docs.volcengine.com/docs/ark/agent-plan-personal-voice-model?lang=zh) and [API reference](API.md) for details.
 
