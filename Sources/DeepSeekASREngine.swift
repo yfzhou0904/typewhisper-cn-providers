@@ -18,7 +18,7 @@ final class DeepSeekASREngine: NSObject, TranscriptionEnginePlugin, @unchecked S
     private static let endpoint = "https://api.deepseek.com/v1/tools/asr"
     private static let modelId = "deepseek-asr"
     private static let secretKey = "deepseekApiKey"
-    private static let requestTimeout: TimeInterval = 60
+    private static let requestTimeout: TimeInterval = 30
 
     private let state = DeepSeekASRState()
     private let logger = Logger(subsystem: "dev.yfzhou.typewhisper-cn-providers", category: "DeepSeekASR")

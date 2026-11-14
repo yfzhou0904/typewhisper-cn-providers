@@ -17,10 +17,11 @@ vendored under [`vendor/TypeWhisperPluginSDK`](vendor/TypeWhisperPluginSDK).
 
 ## ASR services
 
-This plugin is a thin client over two public cloud ASR services. It is **not**
+This plugin is a thin client over three public cloud ASR services. It is **not**
 affiliated with or endorsed by their vendors. Use of each service is subject to
 the vendor's own terms, and you are responsible for supplying and securing your
 own API keys:
 
 - Xiaomi MiMo-V2.5-ASR (Xiaomi)
 - ByteDance Seed-ASR 2.0 (Volcengine / ByteDance)
+- DeepSeek ASR (DeepSeek)
